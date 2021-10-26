@@ -125,11 +125,16 @@ const game = {
                 const { x, y } = this.retryBlockBtn
                 if (e.offsetX > x && (e.offsetX < x + this.retryBlockBtn.width) &&
                     e.offsetY > y && e.offsetY < (y + this.retryBlockBtn.height)) {
-                    //cancelAnimationFrame(rAF)
                     this.gameOver = false
+                    this.resetGameState()
                 }
             }
         })
+    },
+    resetGameState() {
+        //cancelAnimationFrame(rAF)
+        this.gameStats = { total: 0,lines: 0, nextTetromino: null }
+        this.initPlayField()
     },
     rotateMatrix(matrix) {
         return matrix.map((row, i) => {
@@ -241,8 +246,9 @@ const game = {
         for (let row = 0; row < this.currentTetromino.matrix.length; row++) {
             for (let col = 0; col < this.currentTetromino.matrix[row].length; col++) {
                 if (this.currentTetromino.matrix[row][col]) {
-                    if (this.currentTetromino.row <= 0) {
+                    if (this.currentTetromino.row + row <= 0) {
                         this.gameOver = true
+                        return
                     }
                     this.playField[this.currentTetromino.row + row][this.currentTetromino.col + col] = this.currentTetromino.name
                 }
