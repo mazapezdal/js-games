@@ -3,15 +3,27 @@ const ctx = cvs.getContext('2d')
 
 let rAF = null
 
+// resources
+let retryBtnIcon = null
+
 const game = {
     cellSize: 30,
     playField: [],
     rowCount: 20,
     colCount: 10,
+    retryBlockBtn: { width: 140, height: 70, iconSize: 50 },
+    gameOver: false,
+    gameStats: {
+        total: 0,
+        lines: 0,
+        nextTetromino: null
+    },
+    currentAcceleration: null,
     accLevels: {
         EASY: 60,
         NORMAL: 45,
-        HARD: 30
+        HARD: 30,
+        FREE_FALL: 10,
     },
     tetrominos: {
         'I': [
@@ -62,13 +74,71 @@ const game = {
     currentSequence: [],
     currentTetromino: null,
     frameCounter: 0,
-    startGame() { 
+    async startGame() {
+        if (!retryBtnIcon) {
+            await this.loadResources()
+        }
         this.initPlayField()
         this.generateSequence()
         this.currentTetromino = this.getNextTetromino()
+        this.initEvents()
         this.draw()
     },
+    initEvents() {
+        document.addEventListener('keydown', e => {
+            switch (e.key) {
+                case 'ArrowLeft':
+                    const nextLeftCol = this.currentTetromino.col - 1
+                    if (this.isMoveValid(this.currentTetromino.row, nextLeftCol)) {
+                        this.currentTetromino.col--
+                    }
+                    break
+                case 'ArrowRight':
+                    const nextRightCol = this.currentTetromino.col + 1
+                    if (this.isMoveValid(this.currentTetromino.row, nextRightCol)) {
+                        this.currentTetromino.col++
+                    }
+                    break
+                case 'ArrowUp':
+                    const rotatedMatrix = this.rotateMatrix(this.currentTetromino.matrix)
+                    if (this.isMoveValid(this.currentTetromino.row, this.currentTetromino.col, rotatedMatrix)) {
+                        this.currentTetromino.matrix = rotatedMatrix
+                    }
+                    break
+                case 'ArrowDown':
+                    if (this.currentAcceleration !== this.accLevels.FREE_FALL) {
+                        this.frameCounter = 0
+                        this.currentAcceleration = this.accLevels.FREE_FALL
+                    }
+                    break
+            }
+        })
+
+        document.addEventListener('keyup', e => {
+            if (e.key === 'ArrowDown') {
+                this.currentAcceleration = this.accLevels.EASY
+            }
+        })
+
+        cvs.addEventListener('click', e => {
+            if (this.gameOver) {
+                const { x, y } = this.retryBlockBtn
+                if (e.offsetX > x && (e.offsetX < x + this.retryBlockBtn.width) &&
+                    e.offsetY > y && e.offsetY < (y + this.retryBlockBtn.height)) {
+                    //cancelAnimationFrame(rAF)
+                    this.gameOver = false
+                }
+            }
+        })
+    },
+    rotateMatrix(matrix) {
+        return matrix.map((row, i) => {
+            return row.map((_, j) => matrix[matrix.length - 1 - j][i])
+        })
+    },
     initPlayField() {
+        this.currentAcceleration = this.accLevels.EASY
+
         const { rowCount, colCount } = this
 
         this.playField = []
@@ -106,11 +176,12 @@ const game = {
             matrix: this.tetrominos[tetroName]
         }
     },
-    isMoveValid(cellRow, cellCol) {
+    isMoveValid(cellRow, cellCol, m) {
+        const matrix = m || this.currentTetromino.matrix
         if (this.currentTetromino) {
-            for (let row = 0; row < this.currentTetromino.matrix.length; row++) {
-                for (let col = 0; col < this.currentTetromino.matrix[row].length; col++) {
-                    if (this.currentTetromino.matrix[row][col]) {
+            for (let row = 0; row < matrix.length; row++) {
+                for (let col = 0; col < matrix[row].length; col++) {
+                    if (matrix[row][col]) {
                         if (cellRow + row >= this.rowCount ||
                             cellCol + col < 0 ||
                             cellCol + col >= this.colCount ||
@@ -123,20 +194,88 @@ const game = {
         }
         return true
     },
+    gameOverScreen() {
+        // GAME OVER TEXT
+        ctx.font = '40px monospace'
+        ctx.fillStyle = 'purple'
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'top'
+
+        this.renderText('Game Over')
+
+        // TOTAL TEXT
+        ctx.font = '20px monospace'
+        ctx.fillStyle = 'yellow'
+        const { gameStats: { total } } = this
+        this.renderText(`Total: ${total}`)
+
+
+        // console.log(retryBtnIcon)
+
+        ctx.fillStyle = 'orange'
+
+        if (!this.retryBlockBtn.x && !this.retryBlockBtn.y) {
+            this.retryBlockBtn = {
+                ...this.retryBlockBtn,
+                x: (cvs.width - this.retryBlockBtn.width) / 2,
+                y: cvs.height / 2
+            }
+        }
+
+        ctx.fillRect((cvs.width - this.retryBlockBtn.width) / 2, cvs.height / 2, this.retryBlockBtn.width, this.retryBlockBtn.height)
+
+        ctx.fillStyle = 'white'
+
+        ctx.drawImage(retryBtnIcon,
+            (cvs.width - this.retryBlockBtn.iconSize) / 2,
+            cvs.height / 1.94,
+            50,
+            50)
+    },
+    renderText(txt) {
+        const offset = ctx.measureText(txt).width
+        ctx.fillText(txt, (cvs.width - offset) / 2, (cvs.height - offset) / 2)
+    },
     setUpTetromino() {
 
         for (let row = 0; row < this.currentTetromino.matrix.length; row++) {
             for (let col = 0; col < this.currentTetromino.matrix[row].length; col++) {
                 if (this.currentTetromino.matrix[row][col]) {
-
+                    if (this.currentTetromino.row <= 0) {
+                        this.gameOver = true
+                    }
                     this.playField[this.currentTetromino.row + row][this.currentTetromino.col + col] = this.currentTetromino.name
                 }
             }
         }
 
-        console.log('+')
+        let row = this.rowCount - 1
+
+        while (row >= 0) {
+            if (this.playField[row].every(col => col)) {
+                for (let r = row; r >= 0; r--) {
+                    for (let c = 0; c < this.playField[r].length; c++) {
+                        this.playField[r][c] = this.playField[r - 1]?.[c]
+                    }
+                }
+            } else {
+                row--
+            }
+        }
 
         this.currentTetromino = this.getNextTetromino()
+    },
+    async loadResources() {
+        retryBtnIcon = await this.loadImage('images/retry.png')
+    },
+    loadImage(path) {
+        return new Promise((resolve) => {
+            const img = new Image()
+            img.src = path
+            img.onload = () => {
+                resolve(img)
+            }
+        })
     },
     draw() {
 
@@ -145,43 +284,47 @@ const game = {
         ctx.fillStyle = 'black'
         ctx.fillRect(0, 0, cvs.width, cvs.height)
 
-        if (this.currentTetromino) {
-            ++this.frameCounter
-            if (this.frameCounter === this.accLevels.EASY) {
-                this.currentTetromino.row++
-                this.frameCounter = 0
+        if (!this.gameOver) {
+            if (this.currentTetromino) {
+                ++this.frameCounter
+                if (this.frameCounter === this.currentAcceleration) {
+                    this.currentTetromino.row++
+                    this.frameCounter = 0
+                }
+                if (!this.isMoveValid(this.currentTetromino.row, this.currentTetromino.col)) {
+                    this.currentTetromino.row--
+                    this.setUpTetromino()
+                }
+                for (let row = 0; row < this.currentTetromino.matrix.length; row++) {
+                    for (let col = 0; col < this.currentTetromino.matrix[row].length; col++) {
+                        if (this.currentTetromino.matrix[row][col]) {
+                            ctx.fillStyle = this.tetrominoColors[this.currentTetromino.name]
+                            ctx.fillRect(
+                                this.currentTetromino.col * this.cellSize + col * this.cellSize,
+                                this.currentTetromino.row * this.cellSize + row * this.cellSize,
+                                this.cellSize,
+                                this.cellSize
+                            )
+                        }
+                    }
+                }
             }
-            if (!this.isMoveValid(this.currentTetromino.row, this.currentTetromino.col)) {
-                this.currentTetromino.row--
-                this.setUpTetromino()
-            }
-            for (let row = 0; row < this.currentTetromino.matrix.length; row++) {
-                for (let col = 0; col < this.currentTetromino.matrix[row].length; col++) {
-                    if (this.currentTetromino.matrix[row][col]) {
-                        ctx.fillStyle = this.tetrominoColors[this.currentTetromino.name]
+
+            for (let row = 0; row < this.rowCount; row++) {
+                for (let col = 0; col < this.colCount; col++) {
+                    if (this.playField[row][col]) {
+                        ctx.fillStyle = this.tetrominoColors[this.playField[row][col]]
                         ctx.fillRect(
-                            this.currentTetromino.col * this.cellSize + col * this.cellSize,
-                            this.currentTetromino.row * this.cellSize + row * this.cellSize, 
+                            col * this.cellSize,
+                            row * this.cellSize,
                             this.cellSize,
                             this.cellSize
                         )
                     }
                 }
             }
-        }
-
-        for (let row = 0; row < this.rowCount; row++) {
-            for (let col = 0; col < this.colCount; col++) {
-                if (this.playField[row][col]) { 
-                    ctx.fillStyle = this.tetrominoColors[this.playField[row][col]]
-                    ctx.fillRect(
-                        col * this.cellSize,
-                        row * this.cellSize, 
-                        this.cellSize,
-                        this.cellSize
-                    )
-                }
-            }
+        } else {
+            this.gameOverScreen()
         }
 
         rAF = requestAnimationFrame(this.draw.bind(this))
