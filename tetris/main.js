@@ -308,8 +308,8 @@ const game = {
                             ctx.fillRect(
                                 this.currentTetromino.col * this.cellSize + col * this.cellSize,
                                 this.currentTetromino.row * this.cellSize + row * this.cellSize,
-                                this.cellSize,
-                                this.cellSize
+                                this.cellSize - 1,
+                                this.cellSize - 1
                             )
                         }
                     }
@@ -323,8 +323,8 @@ const game = {
                         ctx.fillRect(
                             col * this.cellSize,
                             row * this.cellSize,
-                            this.cellSize,
-                            this.cellSize
+                            this.cellSize - 1,
+                            this.cellSize - 1
                         )
                     }
                 }
