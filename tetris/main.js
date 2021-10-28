@@ -1,6 +1,12 @@
 const cvs = document.getElementById('game')
 const ctx = cvs.getContext('2d')
 
+// stats DOM
+const statsTetromino = document.querySelector('.game-stats-tetromino')
+const statsTotalScore = document.querySelector('.game-stats-totalscore')
+const statsLines = document.querySelector('.game-stats-lines')
+const statsLevel = document.querySelector('.game-stats-level')
+
 let rAF = null
 
 // resources
@@ -71,6 +77,17 @@ const game = {
         'T': '#800080',
         'Z': '#00ff00'
     },
+    rateSystem: {
+        1: 40,
+        2: 100,
+        3: 300,
+        4: 1200
+    },
+    levelSystem: {
+        0: 'EASY',
+        20: 'NORMAL',
+        40: 'HARD'
+    },
     currentSequence: [],
     currentTetromino: null,
     frameCounter: 0,
@@ -81,6 +98,8 @@ const game = {
         this.initPlayField()
         this.generateSequence()
         this.currentTetromino = this.getNextTetromino()
+        this.renderNextTetromino(this.currentTetromino.nextTetromino)
+        this.renderTotalScore()
         this.initEvents()
         this.draw()
     },
@@ -133,7 +152,7 @@ const game = {
     },
     resetGameState() {
         //cancelAnimationFrame(rAF)
-        this.gameStats = { total: 0,lines: 0, nextTetromino: null }
+        this.gameStats = { total: 0, lines: 0, nextTetromino: null }
         this.initPlayField()
     },
     rotateMatrix(matrix) {
@@ -178,7 +197,8 @@ const game = {
             name: tetroName,
             row: initRow,
             col: initCol,
-            matrix: this.tetrominos[tetroName]
+            matrix: this.tetrominos[tetroName],
+            nextTetromino: this.currentSequence[0]
         }
     },
     isMoveValid(cellRow, cellCol, m) {
@@ -212,7 +232,7 @@ const game = {
         ctx.font = '20px monospace'
         ctx.fillStyle = 'yellow'
         const { gameStats: { total } } = this
-        this.renderText(`Total: ${total}`)
+        this.renderText(`Total: ${total}`, 90)
 
 
         // console.log(retryBtnIcon)
@@ -237,9 +257,9 @@ const game = {
             50,
             50)
     },
-    renderText(txt) {
+    renderText(txt, height) {
         const offset = ctx.measureText(txt).width
-        ctx.fillText(txt, (cvs.width - offset) / 2, (cvs.height - offset) / 2)
+        ctx.fillText(txt, (cvs.width - offset) / 2, (cvs.height - (height || offset)) / 2)
     },
     setUpTetromino() {
 
@@ -257,19 +277,71 @@ const game = {
 
         let row = this.rowCount - 1
 
+        let scoreRows = 0
+
         while (row >= 0) {
+
             if (this.playField[row].every(col => col)) {
                 for (let r = row; r >= 0; r--) {
                     for (let c = 0; c < this.playField[r].length; c++) {
                         this.playField[r][c] = this.playField[r - 1]?.[c]
                     }
                 }
+                scoreRows += 1
             } else {
                 row--
             }
+
+        }
+
+        if (scoreRows) {
+            this.gameStats.lines += scoreRows
+            this.gameStats.total += this.rateSystem[scoreRows] 
         }
 
         this.currentTetromino = this.getNextTetromino()
+        this.renderNextTetromino(this.currentTetromino.nextTetromino)
+        this.renderTotalScore()
+
+        if (this.levelSystem[this.gameStats.lines]) {
+            this.currentAcceleration =  this.accLevels[this.levelSystem[this.gameStats.lines]]
+        }
+    },
+    renderNextTetromino(tetroName) {
+        if (tetroName) {
+            const matrix = this.tetrominos[tetroName]
+
+            let result = ''
+            for (let row = 0; row < 4; row++) {
+                for (let col = 0; col < 4; col++) {
+                    if (matrix[row]?.[col]) {
+                        const currentColor = this.tetrominoColors[tetroName]
+                        result += `<div style="background-color: ${currentColor}"></div>`
+                    } else {
+                        result += '<div></div>'
+                    }
+                }
+            }
+
+            statsTetromino.innerHTML = result
+        }
+    },
+    renderTotalScore() {
+        const { gameStats: { total, lines } } = this
+        statsTotalScore.innerHTML = `Total Score: <span>${total}<span>`
+        statsLines.innerHTML = `Lines: <span>${lines}</span>`
+
+        let currentLevel = null 
+
+        if (lines >= 0 && lines < 20) {
+            currentLevel = 'Easy'
+        } else if (lines >= 20 && lines < 40) {
+            currentLevel = 'Normal'
+        } else {
+            currentLevel = 'Hard'
+        }
+
+        statsLevel.innerHTML = `Level: ${currentLevel}`
     },
     async loadResources() {
         retryBtnIcon = await this.loadImage('images/retry.png')
