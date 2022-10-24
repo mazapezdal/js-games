@@ -1,6 +1,6 @@
 const cvs = document.getElementById('game')
 const ctx = cvs.getContext('2d')
-const moveAudio = new Audio('audio/move.mp3')
+const moveAudio = new Audio('audio/gachiSoundMm.mp3')
 const movesBlock = document.getElementById('moves')
 const timeBlock = document.getElementById('time')
 
@@ -100,8 +100,10 @@ function stillOnHovered(clientX, clientY) {
         (clientY < hoveredItem.y + CELL_WIDTH)
 }
 
-function drawBg(path = 'images/bg.png', dx = 0, dy = 0) {
+function drawBg(path = 'images/bg.jpg', dx = 0, dy = 0) {
+    
     if (loadedBgImage) {
+
         ctx.drawImage(loadedBgImage, dx, dy)
         return
     }
@@ -189,7 +191,7 @@ function drawPlayField() {
                     ctx.beginPath()
 
                     if (hoveredItem && hoveredItem.x === dx && hoveredItem.y === dy) {
-                        ctx.fillStyle = 'yellow'
+                        ctx.fillStyle = 'DeepSkyBlue'
                     } else {
                         ctx.fillStyle = 'white'
                     }

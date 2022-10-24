@@ -1,0 +1,22 @@
+html, body {
+    height: 100%;
+}
+body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+canvas {
+    border: 10px solid #000;
+}
+canvas:hover {
+    cursor: pointer;
+}
+.game-container--stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-gap: 10px;
+}
+#time, #moves {
+    text-align: center;
+}
